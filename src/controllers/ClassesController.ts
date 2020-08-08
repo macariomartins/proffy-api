@@ -32,18 +32,26 @@ export default class ClassesController {
 
     if (filters.hasOwnProperty('week_day')) {
       week_day = filters.week_day as string;
-      sql += ` AND class_schedules.week_day = ${week_day}`;
+
+      if (Number(week_day) >= 0 && Number(week_day) <= 6)
+        sql += ` AND class_schedules.week_day = ${week_day}`;
     }
 
     if (filters.hasOwnProperty('subject')) {
       subject = filters.subject as string;
-      sql += ` AND classes.subject = '${subject}'`;
+
+      if (subject)
+        sql += ` AND classes.subject = '${subject}'`;
     }
 
     if (filters.hasOwnProperty('time')) {
       time = convertHourToMinutes(filters.time as string);
-      sql += ` AND class_schedules.\`from\` <= ${time}`;
-      sql += ` AND class_schedules.\`to\` > ${time}`;
+
+      if (!isNaN(time)) {
+        time = convertHourToMinutes(filters.time as string);
+        sql += ` AND class_schedules.\`from\` <= ${time}`;
+        sql += ` AND class_schedules.\`to\` > ${time}`;
+      }
     }
 
     classes = await database.raw(sql);
