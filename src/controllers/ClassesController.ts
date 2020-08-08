@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import database from '../database/connection';
 import convertHourToMinutes from '../utils/convertHourToMinutes';
+import Knex from 'knex';
 
 interface ScheduleItem {
   week_day: number,
@@ -13,29 +14,39 @@ export default class ClassesController {
 
   async index(request: Request, response: Response) {
     const filters = request.query;
+    let week_day = null
+    let subject = null
+    let time = null;
+    let classes = [];
+    let sql = `SELECT DISTINCT
+                    classes.*,
+                    users.*
+                FROM
+                    classes
+                JOIN users ON
+                    users.id = classes.user_id
+                JOIN class_schedules ON
+                    class_schedules.class_id = classes.id
+                WHERE
+                    1 = 1`;
 
-    if (!filters.week_day || !filters.subject || !filters.time) {
-      return response.status(400).json({
-        error: 'Missing filters to search classes'
-      });
+    if (filters.hasOwnProperty('week_day')) {
+      week_day = filters.week_day as string;
+      sql += ` AND class_schedules.week_day = ${week_day}`;
     }
 
-    const week_day = filters.week_day as string;
-    const subject = filters.subject as string;
-    const time = convertHourToMinutes(filters.time as string);
+    if (filters.hasOwnProperty('subject')) {
+      subject = filters.subject as string;
+      sql += ` AND classes.subject = '${subject}'`;
+    }
 
-    const classes = await database('classes')
-      .whereExists(function () {
-        this.select('class_schedules.*')
-          .from('class_schedules')
-          .whereRaw('`class_schedules`.`class_id` = `classes`.`id`')
-          .whereRaw('`class_schedules`.`week_day` = ??', [Number(week_day)])
-          .whereRaw('`class_schedules`.`from`  <= ??', [time])
-          .whereRaw('`class_schedules`.`to`  > ??', [time])
-      })
-      .where('classes.subject', '=', subject)
-      .join('users', 'classes.user_id', '=', 'users.id')
-      .select(['classes.*', 'users.*']);
+    if (filters.hasOwnProperty('time')) {
+      time = convertHourToMinutes(filters.time as string);
+      sql += ` AND class_schedules.\`from\` <= ${time}`;
+      sql += ` AND class_schedules.\`to\` > ${time}`;
+    }
+
+    classes = await database.raw(sql);
 
     response.json(classes);
   }
