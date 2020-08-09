@@ -19,8 +19,9 @@ export default class ClassesController {
     let time = null;
     let classes = [];
     let sql = `SELECT DISTINCT
-                    classes.*,
-                    users.*
+                    users.*,
+                    classes.subject,
+                    classes.cost
                 FROM
                     classes
                 JOIN users ON
